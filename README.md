@@ -1,19 +1,8 @@
-## Advanced Lane Finding
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+## Report
 
-
-In this project, your goal is to write a software pipeline to identify the lane boundaries in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
-
-Creating a great writeup:
 ---
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
+**Advanced Lane Finding Project**
 
 The goals / steps of this project are the following:
 
@@ -26,14 +15,114 @@ The goals / steps of this project are the following:
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing your pipeline on single frames.  If you want to extract more test images from the videos, you can simply use an image writing method like `cv2.imwrite()`, i.e., you can read the video in frame by frame as usual, and for frames you want to save for later you can write to an image file.  
+[//]: # (Image References)
 
-To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `ouput_images`, and include a description in your writeup for the project of what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
+[chessboardImage]: ./reportPict/chessBoard.PNG "Undistorted chessboard"
+[undistortImage]: ./reportPict/undistort.PNG "Undistorted project image"
+[binaryImage]: ./reportPict/binary.PNG "Binary project image"
+[wrappedImage]: ./reportPict/wrapped.PNG "Wrapped project image"
+[markedImage]: ./reportPict/markedLines.PNG "marked project image"
+[markedUndistImage]: ./reportPict/markedUndist.PNG "marked undistorted project image"
+[projectVideo]: ./output_videos/project_video.mp4 "Project Video"
+[challengeVideo]: ./output_videos/challenge_video.mp4 "challenge Video"
 
-The `challenge_video.mp4` video is an extra (and optional) challenge for you if you want to test your pipeline under somewhat trickier conditions.  The `harder_challenge.mp4` video is another optional challenge and is brutal!
 
-If you're feeling ambitious (again, totally optional though), don't stop there!  We encourage you to go out and take video of your own, calibrate your camera and show us how you would implement this project from scratch!
+### Report
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+#### 1. This report describes the solution for [goals](https://review.udacity.com/#!/rubrics/571/view)  
 
+Whole python code is located in IPython "./code.ipynb". Executed version of project can be viewed [here](./code.html).
+
+### Camera Calibration
+
+#### 1. Camera matrix and distortion coefficients
+
+First cell of IPython project uses cv2 method findChessboardCorners to detect all corners on distorted chess boards. 
+Next section uses cv2 method calibrateCamera to calculate camera distortion based on points detected in previous cell. Next distortion is stored to 'camera_cal/wide_dist_pickle.p' so this calculations can be skipped when tuning image processing pipeline. 
+Example chessboard before and after calibration 
+
+![Example chessboard before and after calibration][chessboardImage]
+
+### Pipeline (single images)
+
+#### 1. Distortion correction
+
+In third IPython cell distortion of input images are corrected using parameters stored in pickle file. 
+Example of project image before and after distortion correction:
+
+![Undistorted project image][undistortImage]
+
+#### 2. Binary image creation
+
+In forth IPython cell I tried several approaches to detect lines. first I tried to use combination of colour and gradient methods in convertToBinMix function, this method worked well for project video but it failed in challenge video because of very distinct surface colour change in the middle of the line.
+Next I tried to detect yellow and white lines just by colours in convertToBinColors but this method was also impossible to apply for challenge video.
+In the end I decided to use colour detection for find all greyish colours convertToBinNotGray which after some experiments started to work quite reliably on both project and challenge video.
+Example of binary image:
+ 
+![Binary project image][binaryImage]
+
+#### 3. Perspective transform
+
+In the fifth IPython cell Images are transformed to "bird eye view" using cv2 warpPerspective method I chose the hardcode the source and destination points in the following manner:
+
+```python
+offset = 300
+src = np.float32([[580,460], [702,460], [233,700], [1075,700]]) # Project video
+dst = np.float32([[offset, 0], [img_size[0]-offset, 0], 
+                 [offset, img_size[1]], 
+                 [img_size[0]-offset, img_size[1]]])
+```
+For challenge video camera position seems to change so different source points were selected
+```python
+src = np.float32([[588,490], [740,490], [309,710], [1117,710]]) # Challenge video
+```
+
+I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+
+![Wrapped project image][wrappedImage]
+
+#### 4. Identifying line pixels and fitting polynomial
+
+In sixth IPython cell binary images are processed to mark lines and detect their features with function markLines. 
+First, lines pixels are identified with sliding windows (green rectangles) in for loop
+```python
+for window in range(nwindows):
+```
+Next, Marked points are go through sanity check pixelsSanityCheck and if are passing, fitted with quadratic polynomial using numpy polyfit method. This fits are verified in lineFitSanitycheck for correct position and distance and approximate perpendicularity. 
+
+![marked project image][markedImage]
+
+#### 5. Line radius and car position calculations
+
+Function markLines apart from identifying lines also calculates radius their radius using calculateRadius. In function calculateRadius first polynomial coefficients are converted from pixels to meters based on dashed line length and traffic lane width. Next radius is calculated at the bottom of the picture using formula:
+Rcurve=((1+(2Ay+B)^2)^3/2)/|2A|
+The position of the car on the line is calculated as a deviation of the middle of the line from middle of the picture and converted to meters, This parameters together with detected lines are overlaid on input picture and returned.
+Lines marked on distortion corrected image:
+
+![marked undistorted project image][markedUndistImage]
+
+---
+
+### Pipeline (video)
+
+#### 1. Video processing modifications
+
+For video processing I decide to reuse functions from image processing pipeline. markLines function was modified to accept previous line position as an input. This significantly speeds up marking left and right lines and if passes sanity checks is overlayed on the output image. 
+When no line passing sanity check is found, previously detected line is used.
+
+Here is my project video: 
+
+![project video][projectVideo]
+
+Here is challenge video:
+
+![challenge video][challengeVideo]
+
+
+---
+
+### Discussion
+
+#### 1. problems / issues
+
+The biggest problem is image binarization under different light conditions. It can be work around on challenge video by taking lane detected in previous frames but it is not possible for harder challenge video. Also radius calculation seems to be a bit noisy.
