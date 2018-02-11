@@ -31,14 +31,14 @@ The goals / steps of this project are the following:
 
 #### 1. This report describes the solution for [goals](https://review.udacity.com/#!/rubrics/571/view)  
 
-Whole python code is located in IPython "./code.ipynb". Executed version of project can be viewed [here](./code.html).
+Whole python code is located in [IPython](./code.ipynb). Executed version of project can be viewed [here](./code.html).
 
 ### Camera Calibration
 
 #### 1. Camera matrix and distortion coefficients
 
 First cell of IPython project uses cv2 method findChessboardCorners to detect all corners on distorted chess boards. 
-Next section uses cv2 method calibrateCamera to calculate camera distortion based on points detected in previous cell. Next distortion is stored to 'camera_cal/wide_dist_pickle.p' so this calculations can be skipped when tuning image processing pipeline. 
+Next cell uses cv2 method calibrateCamera to calculate camera distortion based on points detected in previous cell. Finally distortion is stored to 'camera_cal/wide_dist_pickle.p' so this calculations can be skipped when tuning image processing pipeline. 
 Example chessboard before and after calibration 
 
 ![Example chessboard before and after calibration][chessboardImage]
@@ -55,7 +55,7 @@ Example of project image before and after distortion correction:
 #### 2. Binary image creation
 
 In forth IPython cell I tried several approaches to detect lines. first I tried to use combination of colour and gradient methods in convertToBinMix function, this method worked well for project video but it failed in challenge video because of very distinct surface colour change in the middle of the line.
-Next I tried to detect yellow and white lines just by colours in convertToBinColors but this method was also impossible to apply for challenge video.
+Next I tried to detect yellow and white lines just by colours in convertToBinColors but this method was also impossible to apply on both challenge and project videos.
 In the end I decided to use colour detection for find all greyish colours convertToBinNotGray which after some experiments started to work quite reliably on both project and challenge video.
 Example of binary image:
  
@@ -63,7 +63,7 @@ Example of binary image:
 
 #### 3. Perspective transform
 
-In the fifth IPython cell Images are transformed to "bird eye view" using cv2 warpPerspective method I chose the hardcode the source and destination points in the following manner:
+In the fifth IPython cell Images are transformed to "bird eye view" using cv2 warpPerspective method I chose to hardcode the source and destination points in the following manner:
 
 ```python
 offset = 300
@@ -94,9 +94,10 @@ Next, Marked points are go through sanity check pixelsSanityCheck and if are pas
 
 #### 5. Line radius and car position calculations
 
-Function markLines apart from identifying lines also calculates radius their radius using calculateRadius. In function calculateRadius first polynomial coefficients are converted from pixels to meters based on dashed line length and traffic lane width. Next radius is calculated at the bottom of the picture using formula:
+Apart from identifying lines function markLines also calculates radius using calculateRadius function. To calculate radius first polynomial coefficients are converted from pixels to meters based on dashed line length and traffic lane width. Next radius is calculated close to car hood (the bottom of the picture) using formula:
 Rcurve=((1+(2Ay+B)^2)^3/2)/|2A|
 The position of the car on the line is calculated as a deviation of the middle of the line from middle of the picture and converted to meters, This parameters together with detected lines are overlaid on input picture and returned.
+
 Lines marked on distortion corrected image:
 
 ![marked undistorted project image][markedUndistImage]
@@ -107,7 +108,7 @@ Lines marked on distortion corrected image:
 
 #### 1. Video processing modifications
 
-For video processing I decide to reuse functions from image processing pipeline. markLines function was modified to accept previous line position as an input. This significantly speeds up marking left and right lines and if passes sanity checks is overlayed on the output image. 
+For video processing I decide to reuse functions from image processing pipeline. markLines function was modified to accept previous line position as an input. This significantly speeds up marking left and right line pixels and if passes sanity checks is overlaid on the output image. 
 When no line passing sanity check is found, previously detected line is used.
 
 Here is my project video: 
